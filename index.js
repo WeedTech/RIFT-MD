@@ -455,6 +455,42 @@ async function startBot() {
                     m.key.participant ||
                     m.key.remoteJid;
 
+                // ---- ANTI GROUP MENTION ----
+                if (isGroup) {
+                    try {
+                        const _db = JSON.parse(fs.readFileSync(dbPath, "utf8"));
+                        const _mode = _db.antigroupmention && _db.antigroupmention[from];
+                        const _msg = m.message || {};
+                        const _ctx =
+                            _msg.extendedTextMessage?.contextInfo ||
+                            _msg.imageMessage?.contextInfo ||
+                            _msg.videoMessage?.contextInfo || {};
+                        const _isGroupMention =
+                            !!_msg.groupStatusMentionMessage ||
+                            _msg.protocolMessage?.type === 25 ||
+                            (Array.isArray(_ctx.groupMentions) && _ctx.groupMentions.length > 0);
+
+                        if (_mode && _isGroupMention && !m.key.fromMe) {
+                            const _meta = await sock.groupMetadata(from);
+                            const _admins = _meta.participants.filter(p => p.admin).map(p => p.id);
+                            const _own = String(settings.ownerNumber).replace(/[^0-9]/g, "");
+                            if (!_admins.includes(sender) && !sender.includes(_own)) {
+                                await sock.sendMessage(from, { delete: m.key }).catch(() => {});
+                                await sock.sendMessage(from, {
+                                    text: `🚫 @${sender.split("@")[0]}, group mentions are not allowed here!`,
+                                    mentions: [sender]
+                                });
+                                if (_mode === "kick") {
+                                    await sock.groupParticipantsUpdate(from, [sender], "remove").catch(() => {});
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("AntiGroupMention Error:", e.message);
+                    }
+                }
+                // ---- END ANTI GROUP MENTION ----
+
                 // ======================================
                 // MESSAGE BODY
                 // ======================================
@@ -485,7 +521,7 @@ async function startBot() {
                 // ======================================
                 const botMode = globalDb.mode || "public";
                 if (botMode === "private" && !isOwner) {
-                    return; // Bloke tout lòt moun si l an Private epi se pa ou menm
+                    return; // Block everyone else when the bot is in private mode and the sender is not the owner
                 }
 
                 // ======================================

@@ -1,4 +1,44 @@
 const settings = require("../settings");
+const axios = require("axios");
+
+// ─────────────────────────────────────
+// MENU IMAGE CACHE
+// ─────────────────────────────────────
+
+const imageUrls = [
+    "https://url.bmbxmd.workers.dev/XUHD6.jpg"
+];
+
+let cachedImage = null;
+let imagePromise = null;
+
+function getMenuImage() {
+    if (cachedImage) return Promise.resolve(cachedImage);
+
+    if (!imagePromise) {
+        imagePromise = (async () => {
+            for (const u of imageUrls) {
+                try {
+                    const res = await axios.get(u, {
+                        responseType: "arraybuffer",
+                        timeout: 15000,
+                        headers: { "User-Agent": "Mozilla/5.0" }
+                    });
+                    cachedImage = Buffer.from(res.data);
+                    return cachedImage;
+                } catch (e) {
+                    console.error("Menu image download failed:", u, e.message);
+                }
+            }
+            return null;
+        })().finally(() => { imagePromise = null; });
+    }
+
+    return imagePromise;
+}
+
+// Start downloading as soon as the bot starts
+getMenuImage();
 const fs = require("fs");
 const path = require("path");
 
@@ -70,7 +110,10 @@ module.exports = async (sock, m, args) => {
             "tourl",
             "video",
             "vv",
-            "image"
+            "img",
+            "tiktok",
+            "fancy",
+            "take"
         ],
 
         "GROUP": [
@@ -84,7 +127,10 @@ module.exports = async (sock, m, args) => {
             "open",
             "close",
             "link",
-            "hidetag"
+            "hidetag",
+            "acceptall",
+            "rejectall",
+            "leave"
         ],
 
         "SETTINGS": [
@@ -94,7 +140,8 @@ module.exports = async (sock, m, args) => {
             "mode",
             "autoreact",
             "autoread",
-            "autotyping"
+            "autotyping",
+            "antigroupmention"
         ]
     };
 
@@ -145,16 +192,6 @@ ${formattedCmds}
 
     try {
 
-        await sock.sendMessage(
-            chatId,
-            {
-                text: "⚡ Loading menu..."
-            },
-            {
-                quoted: m
-            }
-        );
-
         const menu = `
 ╭━━〔 TERMINAL ACCESS 〕━━╮
 ┃
@@ -181,8 +218,8 @@ ${menuCategoriesText}
         const channelInfo = {
             contextInfo: {
                 mentionedJid: [
-                    m.sender || m.key.participant
-                ],
+                    m.key.participant || m.key.remoteJid
+                ].filter(Boolean),
 
                 forwardingScore: 999,
 
@@ -204,21 +241,38 @@ ${menuCategoriesText}
         // SEND IMAGE + MENU
         // ─────────────────────────────────
 
-        await sock.sendMessage(
-            chatId,
-            {
-                image: {
-                    url: "https://files.catbox.moe/vv674d.jpg"
-                },
+        // Picture is downloaded once (at startup) and cached, so the menu is instant
+        const imageBuffer = await getMenuImage();
 
-                caption: menu,
+        let sentWithImage = false;
 
-                ...channelInfo
-            },
-            {
-                quoted: m
+        if (imageBuffer) {
+            try {
+                await sock.sendMessage(
+                    chatId,
+                    {
+                        image: imageBuffer,
+                        caption: menu,
+                        ...channelInfo
+                    },
+                    {
+                        quoted: m
+                    }
+                );
+                sentWithImage = true;
+            } catch (imgErr) {
+                console.error("Menu image send failed:", imgErr.message);
             }
-        );
+        }
+
+        // Fallback: text only
+        if (!sentWithImage) {
+            await sock.sendMessage(
+                chatId,
+                { text: menu },
+                { quoted: m }
+            );
+        }
 
     } catch (e) {
         console.error("Menu Error:", e);

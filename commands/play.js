@@ -2,18 +2,6 @@ const axios = require("axios");
 const yts = require("yt-search");
 const settings = require("../settings");
 
-const channelInfo = {
-    contextInfo: {
-        forwardingScore: 999,
-        isForwarded: true,
-        forwardedNewsletterMessageInfo: {
-            newsletterJid: "120363407561123100@newsletter",
-            newsletterName: "RIFT-MD",
-            serverMessageId: -1
-        }
-    }
-};
-
 const axiosConfig = {
     timeout: 60000,
     headers: {
@@ -87,6 +75,64 @@ async function okatsu(url) {
 }
 
 // ===============================
+// APIs FROM WEED-X-MINIBOT
+// ===============================
+
+// KNIGHT
+async function knight(url) {
+    const { data } = await axios.get("https://knightbotapi.stream/api/download", {
+        ...axiosConfig,
+        params: { apikey: "knight", type: "mp3", url },
+        timeout: 120000
+    });
+
+    const r = data?.result ?? data?.data ?? data;
+    const link =
+        (typeof r === "string" ? r : null) ||
+        r?.downloadUrl || r?.download_url || r?.download || r?.url || r?.link || r?.audio ||
+        data?.downloadUrl || data?.download || data?.url;
+
+    if (typeof link === "string" && link.startsWith("http")) {
+        return { url: link, title: r?.title || data?.title || "" };
+    }
+
+    throw new Error("Knight failed");
+}
+
+// ELITE (ytmp3 endpoint)
+async function eliteYtmp3(url) {
+    const { data } = await axios.get("https://eliteprotech-apis.zone.id/download/ytmp3", {
+        ...axiosConfig,
+        params: { url },
+        timeout: 120000
+    });
+
+    const d = data?.status && data.download;
+
+    if (d?.downloadUrl) {
+        return { url: d.downloadUrl, title: d.title || "" };
+    }
+
+    throw new Error("Elite ytmp3 failed");
+}
+
+// PRINCE
+async function princeYtmp3(url) {
+    const { data } = await axios.get(
+        `https://api.princetechn.com/api/download/ytmp3?apikey=prince&url=${encodeURIComponent(url)}`,
+        axiosConfig
+    );
+
+    const r = data?.success && data.result;
+
+    if (r?.downloadUrl) {
+        return { url: r.downloadUrl, title: r.title || "" };
+    }
+
+    throw new Error("Prince ytmp3 failed");
+}
+
+// ===============================
 // MAIN COMMAND
 // ===============================
 module.exports = async (sock, m, args) => {
@@ -101,8 +147,7 @@ module.exports = async (sock, m, args) => {
                 {
                     text:
                         `❌ *Please provide a song name or YouTube link!*\n\n` +
-                        `💡 Example: \`${settings.prefix}play Bob Marley Is This Love\``,
-                    ...channelInfo
+                        `💡 Example: \`${settings.prefix}play Bob Marley Is This Love\``
                 },
                 { quoted: m }
             );
@@ -130,8 +175,7 @@ module.exports = async (sock, m, args) => {
                 return await sock.sendMessage(
                     chatId,
                     {
-                        text: "❌ *No songs found for your query!*",
-                        ...channelInfo
+                        text: "❌ *No songs found for your query!*"
                     },
                     { quoted: m }
                 );
@@ -145,6 +189,9 @@ module.exports = async (sock, m, args) => {
         }
 
         const servers = [
+            { name: "Knight", function: knight },
+            { name: "Elite ytmp3", function: eliteYtmp3 },
+            { name: "Prince", function: princeYtmp3 },
             { name: "EliteProTech", function: eliteProTech },
             { name: "Yupra", function: yupra },
             { name: "Okatsu", function: okatsu }
@@ -188,7 +235,6 @@ module.exports = async (sock, m, args) => {
                 mimetype: "audio/mpeg",
                 fileName: `${cleanTitle}.mp3`,
                 contextInfo: {
-                    ...channelInfo.contextInfo,
                     externalAdReply: {
                         title: title,
                         body: "RIFT-MD MUSIC",
@@ -218,8 +264,7 @@ module.exports = async (sock, m, args) => {
             {
                 text:
                     "❌ *Audio download failed!*\n\n" +
-                    "⚠️ All audio servers are currently unavailable or timed out.",
-                ...channelInfo
+                    "⚠️ All audio servers are currently unavailable or timed out."
             },
             { quoted: m }
         );

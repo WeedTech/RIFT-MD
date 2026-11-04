@@ -1,38 +1,32 @@
+// Reply to a message with .delete (works in private chats and groups)
 module.exports = async (sock, m) => {
-    const { remoteJid } = m.key;
+    const chatId = m.key.remoteJid;
+    const ctx = m.message?.extendedTextMessage?.contextInfo;
 
-    // 1. Safe extraction of quoted message info (Modern Baileys compatible)
-    const contextInfo = m.message?.extendedTextMessage?.contextInfo || m.msg?.contextInfo;
-    
-    if (!contextInfo || !contextInfo.stanzaId) {
-        return await sock.sendMessage(remoteJid, { 
-            text: "❓ *Error:* Please reply to the message you want me to delete." 
+    if (!ctx || !ctx.stanzaId) {
+        return await sock.sendMessage(chatId, {
+            text: "❓ *Reply to the message you want me to delete.*"
         }, { quoted: m });
     }
 
     try {
-        // 2. Prepare the key for the quoted message
+        const botNum = (sock.user?.id || "").split(":")[0].split("@")[0];
+        const author = ctx.participant || "";
+        const fromBot = !!botNum && author.includes(botNum);
+
         const targetKey = {
-            remoteJid: remoteJid,
-            fromMe: contextInfo.participant?.includes(sock.user.id.split(':')[0]) || false,
-            id: contextInfo.stanzaId,
-            participant: contextInfo.participant
+            remoteJid: chatId,
+            fromMe: fromBot,
+            id: ctx.stanzaId
         };
+        if (chatId.endsWith("@g.us")) targetKey.participant = author;
 
-        // 3. Delete BOTH the target message and the command message smoothly
-        await sock.sendMessage(remoteJid, { delete: targetKey }); // Efase mesaj ou reponn nan
-        await sock.sendMessage(remoteJid, { delete: m.key });      // Efase komand la (.delete)
-
+        await sock.sendMessage(chatId, { delete: targetKey });
+        await sock.sendMessage(chatId, { delete: m.key }).catch(() => {});
     } catch (err) {
-        console.error("Delete Command Error:", err);
-        
-        // Modern styled error response
-        const errorText = `╭━━━〔 *DELETE ERROR* 〕━━━⬣
-┃ ⚠️ *Failed to delete message!*
-┃ Make sure I am a **Group Admin** 
-┃ if you want to delete others' messages.
-╰━━━━━━━━━━━━━━━━━━━━⬣`.trim();
-
-        await sock.sendMessage(remoteJid, { text: errorText }, { quoted: m });
+        console.error("Delete Error:", err);
+        await sock.sendMessage(chatId, {
+            text: `╭━━━〔 *DELETE ERROR* 〕━━━⬣\n┃ ⚠️ Failed to delete the message.\n┃ In groups, I must be *admin*\n┃ to delete other people's messages.\n╰━━━━━━━━━━━━━━━━━━━━⬣`
+        }, { quoted: m });
     }
 };

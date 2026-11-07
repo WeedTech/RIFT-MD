@@ -48,7 +48,7 @@ The project is fully **open source**: you are free to modify it, rebrand it, and
 
 [![Deploy on Katabump](https://img.shields.io/badge/☁️_Deploy_on-Katabump_Panel-0033CC?style=for-the-badge)](https://dashboard.katabump.com/dashboard)
 
-[![Tutorial Video](https://img.shields.io/badge/🚀_Tutorial-Watch_on_YouTube-FF007F?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@WeedTech-e1m)
+[![Deploy Tutorial](https://img.shields.io/badge/🚀_Deploy_Tutorial-Watch_on_YouTube-FF007F?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/OGzfowAZ4Lg?si=b4jLclcosn03lM45)
 
 </div>
 

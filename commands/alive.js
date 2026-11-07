@@ -12,7 +12,7 @@ module.exports = async (sock, m) => {
 
         // Send the image along with the text as caption and channel info
         await sock.sendMessage(remoteJid, { 
-            image: { url: "https://files.catbox.moe/yg3xc1.png" }, // Change image link if needed
+            image: { url: "https://url.bmbxmd.workers.dev/XUHD6.jpg" }, // Change image link if needed
             caption: aliveTemplate,
             contextInfo: {
                 forwardingScore: 999,
